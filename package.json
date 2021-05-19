@@ -1,9 +1,9 @@
 {
-  "name": "jarvis",
+  "name": "open-source-assistant",
   "version": "0.2.0",
   "description": "Server, packages and web app of the Jarvis personal assistant",
   "author": {
-    "name": "L"
+    "name": "L Jacobs"
   },
   "license": "MIT",
   "scripts": {
