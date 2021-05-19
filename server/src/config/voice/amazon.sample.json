@@ -1,7 +1,5 @@
 {
-  "credentials": {
-    "accessKeyId": "",
-    "secretAccessKey": ""
-  },
+  "accessKeyId": "",
+  "secretAccessKey": "",
   "region": "us-east-2"
 }

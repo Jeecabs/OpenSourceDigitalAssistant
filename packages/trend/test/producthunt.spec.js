@@ -1,3 +1,5 @@
+'use strict'
+
 describe('trend:producthunt', async () => {
   test('requests Product Hunt', async () => {
     global.nlu.brain.execute = jest.fn()

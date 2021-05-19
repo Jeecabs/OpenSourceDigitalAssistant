@@ -1,3 +1,5 @@
+'use strict'
+
 describe('leon:partnerassistant', async () => {
   test('does not know this personal assistant', async () => {
     global.nlu.brain.execute = jest.fn()
