@@ -1,6 +1,6 @@
 import dotenv from 'dotenv'
 import fs from 'fs'
-import { command } from 'execa'
+import { shell } from 'execa'
 import semver from 'semver'
 
 import log from '@/helpers/log'
@@ -22,7 +22,7 @@ export default () => new Promise(async (resolve, reject) => {
     const googleCloudPath = 'server/src/config/voice/google-cloud.json'
     const watsonSttPath = 'server/src/config/voice/watson-stt.json'
     const watsonTtsPath = 'server/src/config/voice/watson-tts.json'
-    const nlpModelPath = 'server/src/data/leon-model.nlp'
+    const classifierPath = 'server/src/data/expressions/classifier.json'
     const report = {
       can_run: { title: 'Run', type: 'error', v: true },
       can_run_module: { title: 'Run modules', type: 'error', v: true },
@@ -41,18 +41,18 @@ export default () => new Promise(async (resolve, reject) => {
     // Environment checking
 
     (await Promise.all([
-      command('node --version', { shell: true }),
-      command('npm --version', { shell: true }),
-      command('pipenv --version', { shell: true })
+      shell('node --version'),
+      shell('npm --version'),
+      shell('pipenv --version')
     ])).forEach((p) => {
-      log.info(p.command)
+      log.info(p.cmd)
 
-      if (p.command.indexOf('node --version') !== -1
-        && !semver.satisfies(semver.clean(p.stdout), `>=${nodeMinRequiredVersion}`)) {
+      if (p.cmd.indexOf('node --version') !== -1 &&
+        !semver.satisfies(semver.clean(p.stdout), `>=${nodeMinRequiredVersion}`)) {
         Object.keys(report).forEach((item) => { if (report[item].type === 'error') report[item].v = false })
         log.error(`${p.stdout}\nThe Node.js version must be >=${nodeMinRequiredVersion}. Please install it: https://nodejs.org (or use nvm)\n`)
-      } else if (p.command.indexOf('npm --version') !== -1
-        && !semver.satisfies(semver.clean(p.stdout), `>=${npmMinRequiredVersion}`)) {
+      } else if (p.cmd.indexOf('npm --version') !== -1 &&
+        !semver.satisfies(semver.clean(p.stdout), `>=${npmMinRequiredVersion}`)) {
         Object.keys(report).forEach((item) => { if (report[item].type === 'error') report[item].v = false })
         log.error(`${p.stdout}\nThe npm version must be >=${npmMinRequiredVersion}. Please install it: https://www.npmjs.com/get-npm (or use nvm)\n`)
       } else {
@@ -61,13 +61,13 @@ export default () => new Promise(async (resolve, reject) => {
     });
 
     (await Promise.all([
-      command('pipenv --where', { shell: true }),
-      command('pipenv run python --version', { shell: true })
+      shell('pipenv --where'),
+      shell('pipenv run python --version')
     ])).forEach((p) => {
-      log.info(p.command)
+      log.info(p.cmd)
 
-      if (p.command.indexOf('pipenv run python --version') !== -1
-        && !semver.satisfies(p.stdout.split(' ')[1], `>=${pythonMinRequiredVersion}`)) {
+      if (p.cmd.indexOf('pipenv run python --version') !== -1 &&
+        !semver.satisfies(p.stdout.split(' ')[1], `>=${pythonMinRequiredVersion}`)) {
         Object.keys(report).forEach((item) => { if (report[item].type === 'error') report[item].v = false })
         log.error(`${p.stdout}\nThe Python version must be >=${pythonMinRequiredVersion}. Please install it: https://www.python.org/downloads\n`)
       } else {
@@ -78,22 +78,22 @@ export default () => new Promise(async (resolve, reject) => {
     // Module execution checking
 
     try {
-      const p = await command('pipenv run python bridges/python/main.py scripts/assets/query-object.json', { shell: true })
-      log.info(p.command)
+      const p = await shell('pipenv run python bridges/python/main.py scripts/assets/query-object.json')
+      log.info(p.cmd)
       log.success(`${p.stdout}\n`)
     } catch (e) {
-      log.info(e.command)
+      log.info(e.cmd)
       report.can_run_module.v = false
       log.error(`${e}\n`)
     }
 
-    // NLP model checking
+    // Classifier checking
 
-    log.info('NLP model state')
-    if (!fs.existsSync(nlpModelPath) || !Object.keys(fs.readFileSync(nlpModelPath)).length) {
+    log.info('Classifier state')
+    if (!fs.existsSync(classifierPath) || !Object.keys(fs.readFileSync(classifierPath)).length) {
       report.can_text.v = false
       Object.keys(report).forEach((item) => { if (item.indexOf('stt') !== -1 || item.indexOf('tts') !== -1) report[item].v = false })
-      log.error('NLP model not found or broken. Try to generate a new one: "npm run train expressions"\n')
+      log.error('Classifier not found or broken. Try to generate a new one: "npm run train expressions"\n')
     } else {
       log.success('Found and valid\n')
     }
@@ -105,13 +105,13 @@ export default () => new Promise(async (resolve, reject) => {
       const json = JSON.parse(fs.readFileSync(amazonPath))
       if (json.accessKeyId === '' || json.secretAccessKey === '') {
         report.can_amazon_polly_tts.v = false
-        log.warning('Amazon Polly TTS is not yet configured\n')
+        warningLog('Amazon Polly TTS is not yet configured\n')
       } else {
         log.success('Configured\n')
       }
     } catch (e) {
       report.can_amazon_polly_tts.v = false
-      log.warning(`Amazon Polly TTS is not yet configured: ${e}\n`)
+      warningLog(`Amazon Polly TTS is not yet configured: ${e}\n`)
     }
 
     log.info('Google Cloud TTS/STT')
@@ -122,14 +122,14 @@ export default () => new Promise(async (resolve, reject) => {
       if (results.includes(false)) {
         report.can_google_cloud_tts.v = false
         report.can_google_cloud_stt.v = false
-        log.warning('Google Cloud TTS/STT is not yet configured\n')
+        warningLog('Google Cloud TTS/STT is not yet configured\n')
       } else {
         log.success('Configured\n')
       }
     } catch (e) {
       report.can_google_cloud_tts.v = false
       report.can_google_cloud_stt.v = false
-      log.warning(`Google Cloud TTS/STT is not yet configured: ${e}\n`)
+      warningLog(`Google Cloud TTS/STT is not yet configured: ${e}\n`)
     }
 
     log.info('Watson TTS')
@@ -139,19 +139,19 @@ export default () => new Promise(async (resolve, reject) => {
       Object.keys(json).forEach((item) => { if (json[item] === '') results.push(false) })
       if (results.includes(false)) {
         report.can_watson_tts.v = false
-        log.warning('Watson TTS is not yet configured\n')
+        warningLog('Watson TTS is not yet configured\n')
       } else {
         log.success('Configured\n')
       }
     } catch (e) {
       report.can_watson_tts.v = false
-      log.warning(`Watson TTS is not yet configured: ${e}\n`)
+      warningLog(`Watson TTS is not yet configured: ${e}\n`)
     }
 
     log.info('Offline TTS')
     if (!fs.existsSync(flitePath)) {
       report.can_offline_tts.v = false
-      log.warning(`Cannot find ${flitePath}. You can setup the offline TTS by running: "npm run setup:offline-tts"\n`)
+      warningLog(`Cannot find ${flitePath}. You can setup the offline TTS by running: "npm run setup:offline-tts"\n`)
     } else {
       log.success(`Found Flite at ${flitePath}\n`)
     }
@@ -163,19 +163,19 @@ export default () => new Promise(async (resolve, reject) => {
       Object.keys(json).forEach((item) => { if (json[item] === '') results.push(false) })
       if (results.includes(false)) {
         report.can_watson_stt.v = false
-        log.warning('Watson STT is not yet configured\n')
+        warningLog('Watson STT is not yet configured\n')
       } else {
         log.success('Configured\n')
       }
     } catch (e) {
       report.can_watson_stt.v = false
-      log.warning(`Watson STT is not yet configured: ${e}`)
+      warningLog(`Watson STT is not yet configured: ${e}`)
     }
 
     log.info('Offline STT')
     if (!fs.existsSync(deepSpeechPath)) {
       report.can_offline_stt.v = false
-      log.warning(`Cannot find ${deepSpeechPath}. You can setup the offline STT by running: "npm run setup:offline-stt"`)
+      warningLog(`Cannot find ${deepSpeechPath}. You can setup the offline STT by running: "npm run setup:offline-stt"`)
     } else {
       log.success(`Found DeepSpeech language model at ${deepSpeechPath}`)
     }

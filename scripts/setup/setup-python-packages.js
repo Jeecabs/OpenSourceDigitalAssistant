@@ -1,4 +1,4 @@
-import { command } from 'execa'
+import { shell } from 'execa'
 import fs from 'fs'
 
 import log from '@/helpers/log'
@@ -15,7 +15,7 @@ export default () => new Promise(async (resolve, reject) => {
 
     try {
       // Check if Pipenv is installed
-      const pipenvVersionChild = await command('pipenv --version', { shell: true })
+      const pipenvVersionChild = await shell('pipenv --version')
       let pipenvVersion = pipenvVersionChild.stdout
 
       if (pipenvVersion.indexOf('version') !== -1) {
@@ -32,10 +32,10 @@ export default () => new Promise(async (resolve, reject) => {
 
     try {
       // Installing Python packages
-      log.info('Installing Python packages from bridges/python/Pipfile...')
+      log.info('Installing Python packages from bridges/python/Pipfile.lock...')
 
-      await command('pipenv --three', { shell: true })
-      await command('pipenv install', { shell: true })
+      await shell('pipenv --three')
+      await shell('pipenv install --skip-lock')
       log.success('Python packages installed')
       resolve()
     } catch (e) {

@@ -1,7 +1,7 @@
-import { command } from 'execa'
+import { shell } from 'execa'
 
 import log from '@/helpers/log'
-import loader from '@/helpers/loader'
+import loader from '@/helpers/loader';
 
 /**
  * This script ensures the correct coding syntax of the whole project
@@ -12,7 +12,7 @@ import loader from '@/helpers/loader'
 
   try {
     const globs = [
-      '"app/src/js/*.js"',
+      '"app/**/*.es6.js"',
       '"hotword/index.js"',
       '"packages/**/*.js"',
       '"scripts/**/*.js"',
@@ -23,7 +23,7 @@ import loader from '@/helpers/loader'
       '"test/unit/**/*.js"'
     ]
 
-    await command(`npx eslint ${globs.join(' ')}`, { shell: true })
+    await shell(`npx eslint ${globs.join(' ')}`)
 
     log.success('Looks great')
     loader.stop()

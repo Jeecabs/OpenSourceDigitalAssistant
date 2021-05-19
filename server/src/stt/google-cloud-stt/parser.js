@@ -1,3 +1,5 @@
+'use strict'
+
 import stt from '@google-cloud/speech'
 
 import log from '@/helpers/log'
@@ -41,7 +43,7 @@ parser.parse = async (buffer, cb) => {
       audio,
       config: parser.conf
     })
-    const string = res[0].results.map((data) => data.alternatives[0].transcript).join('\n')
+    const string = res[0].results.map(data => data.alternatives[0].transcript).join('\n')
 
     cb({ string })
   } catch (e) {

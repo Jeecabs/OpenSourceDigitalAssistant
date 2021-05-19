@@ -8,11 +8,12 @@ import train from '../train'
 import setupDotenv from './setup-dotenv'
 import setupCore from './setup-core'
 import setupPackagesConfig from './setup-packages-config'
-import setupPythonPackages from './setup-python-packages'
+// import setupPythonPackages from './setup-python-packages';
 
 // Do not load ".env" file because it is not created yet
 
 /**
+ * 
  * Main entry to setup Leon
  */
 (async () => {
@@ -30,7 +31,9 @@ import setupPythonPackages from './setup-python-packages'
       setupCore(),
       setupPackagesConfig()
     ])
-    await setupPythonPackages()
+
+    console.log(`[${__dirname}] IT USED TO INSTALL PYTHON PACAKAGES !`)
+    // await setupPythonPackages()
     await train()
     if (info.type === 'windows') {
       log.info('Windows detected, reinjecting DeepSpeech into package.json...')

@@ -1,5 +1,6 @@
+'use strict'
+
 import Tts from 'ibm-watson/text-to-speech/v1'
-import { IamAuthenticator } from 'ibm-watson/auth'
 import Ffmpeg from 'fluent-ffmpeg'
 import { path as ffmpegPath } from '@ffmpeg-installer/ffmpeg'
 import { path as ffprobePath } from '@ffprobe-installer/ffprobe'
@@ -13,10 +14,11 @@ log.title('Watson TTS Synthesizer')
 const synthesizer = { }
 const voices = {
   'en-US': {
-    voice: 'en-US_MichaelV3Voice'
+    voice: 'en-US_MichaelVoice'
   },
   'fr-FR': {
-    voice: 'fr-FR_NicolasV3Voice'
+    voice: 'en-US_MichaelVoice' // fr-FR (male) not yet implemented
+    // voice: 'fr-FR_ReneeVoice' // French female voice
   }
 }
 let client = { }
@@ -30,13 +32,14 @@ synthesizer.conf = {
  * Initialize Watson Text-to-Speech based on credentials in the JSON file
  */
 synthesizer.init = () => {
-  const config = JSON.parse(fs.readFileSync(`${__dirname}/../../config/voice/watson-tts.json`, 'utf8'))
+  const credentials = JSON.parse(fs.readFileSync(`${__dirname}/../../config/voice/watson-tts.json`, 'utf8'))
 
   try {
-    client = new Tts({
-      authenticator: new IamAuthenticator({ apikey: config.apikey }),
-      serviceUrl: config.url
-    })
+    if (process.env.LEON_LANG === 'fr-FR') {
+      warningLog('fr-FR (male) is not yet implemented for the Watson TTS synthesizer')
+    }
+
+    client = new Tts(credentials)
 
     log.success('Synthesizer initialized')
   } catch (e) {
@@ -52,35 +55,36 @@ synthesizer.save = (speech, em, cb) => {
 
   synthesizer.conf.text = speech
 
-  client.synthesize(synthesizer.conf)
-    .then(({ result }) => {
-      const wStream = fs.createWriteStream(file)
+  client.synthesize(synthesizer.conf, (err, result) => {
+    if (err) {
+      log.error(`Watson TTS: ${err}`)
+      return
+    }
 
-      result.pipe(wStream)
+    const wStream = fs.createWriteStream(file)
 
-      wStream.on('finish', () => {
-        const ffmpeg = new Ffmpeg()
-        ffmpeg.setFfmpegPath(ffmpegPath)
-        ffmpeg.setFfprobePath(ffprobePath)
+    result.pipe(wStream)
 
-        // Get file duration thanks to ffprobe
-        ffmpeg.input(file).ffprobe((err, data) => {
-          if (err) log.error(err)
-          else {
-            const duration = data.streams[0].duration * 1000
-            em.emit('saved', duration)
-            cb(file, duration)
-          }
-        })
-      })
+    wStream.on('finish', () => {
+      const ffmpeg = new Ffmpeg()
+      ffmpeg.setFfmpegPath(ffmpegPath)
+      ffmpeg.setFfprobePath(ffprobePath)
 
-      wStream.on('error', (err) => {
-        log.error(`Watson TTS: ${err}`)
+      // Get file duration thanks to ffprobe
+      ffmpeg.input(file).ffprobe((err, data) => {
+        if (err) log.error(err)
+        else {
+          const duration = data.streams[0].duration * 1000
+          em.emit('saved', duration)
+          cb(file, duration)
+        }
       })
     })
-    .catch((err) => {
+
+    wStream.on('error', (err) => {
       log.error(`Watson TTS: ${err}`)
     })
+  })
 }
 
 export default synthesizer
